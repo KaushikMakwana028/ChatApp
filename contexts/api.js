@@ -2,33 +2,60 @@
  * =============================================================================
  * CENTRAL API CONFIGURATION & HTTP CLIENT
  * =============================================================================
- * TO GO LIVE:
- * Simply change the single `BASE_URL` link below!
- * Everything in the entire app connects through this single link.
+ * LIVE PRODUCTION BASE_URL:
+ * https://trilexadvisory.com/chatbot/index.php?/api
  *
- * Examples:
- * - Android Emulator (Localhost XAMPP): 'http://10.0.2.2/kaushik/chatbot/api'
- * - Real Physical Device (on same WiFi): 'http://192.168.1.XX/kaushik/chatbot/api'
- * - iOS Simulator (Localhost XAMPP):    'http://localhost/kaushik/chatbot/api'
- * - Live Production Server:             'https://your-domain.com/api'
+ * Automatically handles standard clean URLs as well as Nginx CodeIgniter
+ * query-string routing (/index.php?/api) so all endpoints work universally!
  * =============================================================================
  */
-export const BASE_URL = 'http://10.0.2.2/kaushik/chatbot/api';
+export const BASE_URL = 'https://trilexadvisory.com/chatbot/index.php?/api';
+
+/**
+ * Clean URL variant (for servers with Apache mod_rewrite / Nginx rewrites configured)
+ */
+const CLEAN_BASE_URL = 'https://trilexadvisory.com/chatbot/api';
+
+/**
+ * Tracks the actively verified base URL for the current session
+ */
+let activeBaseUrl = BASE_URL;
+
+/**
+ * Returns current active API URL
+ */
+export const getActiveBaseUrl = () => activeBaseUrl;
+
+/**
+ * Universal URL builder that safely formats routes for both clean Apache rewrites
+ * and CodeIgniter query-string routing (/index.php?/api&param=val)
+ */
+export const formatUrl = (baseUrl, endpoint) => {
+  const clean = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  return `${baseUrl}/${clean}`;
+};
 
 /**
  * Root URL for static asset URLs (e.g. uploaded images or media)
  */
-export const SERVER_ROOT = BASE_URL.replace(/\/api\/?$/, '');
+export const SERVER_ROOT = 'https://trilexadvisory.com/chatbot';
 
 /**
  * Normalizes media URLs returned from API so they work on any device/emulator.
- * Replaces localhost with the current BASE_URL host.
+ * Replaces localhost or local development paths with the live server root.
  */
 export const resolveMediaUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http://localhost/') || url.startsWith('http://127.0.0.1/')) {
-    const apiHost = BASE_URL.split('/chatbot/api')[0];
-    return url.replace(/^http:\/\/(localhost|127\.0\.0\.1)/, apiHost);
+  // If the backend returns a localhost or 127.0.0.1 URL (e.g. from local tests),
+  // dynamically replace the host with current server origin
+  if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+    try {
+      const baseMatch = BASE_URL.match(/^(https?:\/\/[^\/]+)/i);
+      const hostOrigin = baseMatch ? baseMatch[1] : 'https://trilexadvisory.com';
+      return url.replace(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/kaushik/, hostOrigin);
+    } catch (e) {
+      return url;
+    }
   }
   return url;
 };
@@ -43,8 +70,7 @@ export const resolveMediaUrl = (url) => {
  * @returns {Promise<{status: boolean, message: string, data: any}>}
  */
 export const apiCall = async (endpoint, method = 'GET', body = null, token = null) => {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-  const url = `${BASE_URL}/${cleanEndpoint}`;
+  const url = formatUrl(activeBaseUrl, endpoint);
 
   const headers = {
     'Accept': 'application/json',
@@ -71,7 +97,22 @@ export const apiCall = async (endpoint, method = 'GET', body = null, token = nul
     let json;
     try {
       json = JSON.parse(text);
+      return json;
     } catch (parseError) {
+      // If direct URL returned HTML, try clean URL fallback
+      if (activeBaseUrl === BASE_URL && CLEAN_BASE_URL !== BASE_URL) {
+        const fallbackUrl = formatUrl(CLEAN_BASE_URL, endpoint);
+        try {
+          const fallbackResp = await fetch(fallbackUrl, options);
+          const fallbackText = await fallbackResp.text();
+          const fallbackJson = JSON.parse(fallbackText);
+          activeBaseUrl = CLEAN_BASE_URL;
+          return fallbackJson;
+        } catch (fallbackErr) {
+          console.warn('[API] Fallback also failed:', fallbackErr.message);
+        }
+      }
+
       console.warn('API non-JSON response from ' + url + ':', text.slice(0, 200));
       return {
         status: false,
@@ -79,13 +120,25 @@ export const apiCall = async (endpoint, method = 'GET', body = null, token = nul
         data: null,
       };
     }
-
-    return json;
   } catch (networkError) {
+    // If network error on direct URL, try clean fallback URL before reporting error
+    if (activeBaseUrl === BASE_URL && CLEAN_BASE_URL !== BASE_URL) {
+      const fallbackUrl = formatUrl(CLEAN_BASE_URL, endpoint);
+      try {
+        const fallbackResp = await fetch(fallbackUrl, options);
+        const fallbackText = await fallbackResp.text();
+        const fallbackJson = JSON.parse(fallbackText);
+        activeBaseUrl = CLEAN_BASE_URL;
+        return fallbackJson;
+      } catch (fallbackErr) {
+        // Continue to network error
+      }
+    }
+
     console.error(`Network request failed for ${url}:`, networkError.message);
     return {
       status: false,
-      message: 'Network error: Please verify your server connection and BASE_URL.',
+      message: 'Network error: Please verify your internet connection and server.',
       data: null,
     };
   }
@@ -100,8 +153,7 @@ export const apiCall = async (endpoint, method = 'GET', body = null, token = nul
  * @returns {Promise<{status: boolean, message: string, data: any}>}
  */
 export const uploadMedia = async (endpoint, formData, token = null) => {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-  const url = `${BASE_URL}/${cleanEndpoint}`;
+  const url = formatUrl(activeBaseUrl, endpoint);
 
   const headers = {
     'Accept': 'application/json',
@@ -111,26 +163,37 @@ export const uploadMedia = async (endpoint, formData, token = null) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+  const options = {
+    method: 'POST',
+    headers,
+    body: formData,
+  };
 
+  try {
+    const response = await fetch(url, options);
     const text = await response.text();
     let json;
     try {
       json = JSON.parse(text);
+      return json;
     } catch (e) {
+      if (activeBaseUrl === BASE_URL && CLEAN_BASE_URL !== BASE_URL) {
+        const fallbackUrl = formatUrl(CLEAN_BASE_URL, endpoint);
+        try {
+          const fallbackResp = await fetch(fallbackUrl, options);
+          const fallbackText = await fallbackResp.text();
+          const fallbackJson = JSON.parse(fallbackText);
+          activeBaseUrl = CLEAN_BASE_URL;
+          return fallbackJson;
+        } catch (err) {}
+      }
+
       return {
         status: false,
         message: `Upload failed with status ${response.status}`,
         data: null,
       };
     }
-
-    return json;
   } catch (error) {
     console.error('Upload network error:', error.message);
     return {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,16 +12,25 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
+import fcmService from '../services/fcmService';
 
 export const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Proactively request notification permissions and warm up FCM token
+  useEffect(() => {
+    fcmService.requestNotificationPermission().catch(() => {});
+    fcmService.getFcmToken(2, 500).catch(() => {});
+  }, []);
 
   const handleLogin = async () => {
     if (!loginId.trim()) {
@@ -36,7 +45,9 @@ export const LoginScreen = ({ navigation }) => {
     setErrorMessage('');
     setSubmitting(true);
 
-    const res = await login(loginId.trim(), password);
+    // Ensure FCM token is acquired with notification permission
+    const fcmToken = await fcmService.getFcmToken(2, 600).catch(() => null);
+    const res = await login(loginId.trim(), password, fcmToken);
     setSubmitting(false);
 
     if (res.success) {
@@ -46,13 +57,15 @@ export const LoginScreen = ({ navigation }) => {
     }
   };
 
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={true} />
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 20 }]}>
         {/* Top Logo & Welcome */}
         <View style={styles.topSection}>
           <Image
@@ -61,7 +74,7 @@ export const LoginScreen = ({ navigation }) => {
           />
           <Text style={styles.title}>Enter your phone or email</Text>
           <Text style={styles.subtitle}>
-            WhatsApp will connect you with your contacts securely with end-to-end encryption.
+            ChatApp will connect you with your contacts securely with end-to-end encryption.
           </Text>
         </View>
 

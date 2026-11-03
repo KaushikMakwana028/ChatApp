@@ -68,7 +68,6 @@ export const ChatInputBar = ({ onSend, onAttach, onCameraPress }) => {
           name={hasText ? 'send' : 'microphone'}
           size={hasText ? 18 : 20}
           color="#FFFFFF"
-          style={hasText ? { transform: [{ rotate: '-20deg' }, { translateX: 1 }] } : null}
         />
       </TouchableOpacity>
     </View>

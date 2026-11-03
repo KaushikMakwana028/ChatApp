@@ -1,27 +1,47 @@
 import React, { useEffect } from 'react';
-import { StatusBar, PermissionsAndroid, Platform } from 'react-native';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import messaging from '@react-native-firebase/messaging';
 import { AuthProvider } from './contexts/AuthContext';
-import { ChatProvider } from './contexts/ChatContext';
+import { ChatProvider, useChat } from './contexts/ChatContext';
 import AppNavigator from './navigation/AppNavigator';
+import InAppNotification from './components/InAppNotification';
+import { navigate } from './navigation/navigationRef';
 import Colors from './theme/colors';
+import fcmService from './services/fcmService';
+
+/**
+ * In-App Notification Host
+ * Renders the top floating banner over all screens when a push notification
+ * arrives while user is in the app, and routes directly to the chat on tap.
+ */
+const InAppNotificationHost = () => {
+  const { inAppNotification, dismissInAppNotification, openChat } = useChat();
+
+  if (!inAppNotification) return null;
+
+  return (
+    <InAppNotification
+      notification={inAppNotification}
+      onPress={(partner) => {
+        dismissInAppNotification();
+        if (partner?.id) {
+          openChat(partner);
+          navigate('Chat', { partner });
+        }
+      }}
+      onDismiss={dismissInAppNotification}
+    />
+  );
+};
 
 export default function App() {
   useEffect(() => {
-    (async () => {
-      try {
-        if (Platform.OS === 'android' && Platform.Version >= 33) {
-          await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-          );
-        }
-        const token = await messaging().getToken();
-        console.log('FCM TOKEN:', token);
-      } catch (e) {
-        console.log('FCM ERROR:', e);
-      }
-    })();
+    try {
+      // Initialize permissions & obtain initial FCM token safely in background
+      fcmService.getFcmToken().catch((e) => console.log('[FCM] Token error:', e));
+    } catch (e) {
+      console.warn('[FCM] App setup error:', e);
+    }
   }, []);
 
   return (
@@ -29,11 +49,12 @@ export default function App() {
       <StatusBar
         backgroundColor={Colors.primaryDark}
         barStyle="light-content"
-        translucent={false}
+        translucent={true}
       />
       <AuthProvider>
         <ChatProvider>
           <AppNavigator />
+          <InAppNotificationHost />
         </ChatProvider>
       </AuthProvider>
     </SafeAreaProvider>

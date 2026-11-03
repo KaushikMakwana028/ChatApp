@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
+import fcmService from '../services/fcmService';
 import { STORAGE_KEYS } from '../config/constants';
 
 const AuthContext = createContext(null);
@@ -13,18 +14,33 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Log out
+   * Immediately clears local state and storage, then notifies backend asynchronously
    */
   const logout = React.useCallback(async () => {
+    const activeToken = token;
+    // 1. Immediately reset state so UI switches instantly
+    setToken(null);
+    setCurrentUser(null);
+
+    // 2. Clear stored credentials
     try {
-      if (token) {
-        await authService.logout(token);
-      }
-    } catch (e) {
-      console.warn('Logout API failed:', e);
-    } finally {
-      setToken(null);
-      setCurrentUser(null);
-      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
+      await Promise.all([
+        AsyncStorage.removeItem(STORAGE_KEYS.TOKEN),
+        AsyncStorage.removeItem(STORAGE_KEYS.USER),
+      ]);
+    } catch (storageErr) {
+      console.warn('AsyncStorage clear failed:', storageErr);
+    }
+
+    // 3. Unregister FCM token on backend asynchronously (2s timeout max)
+    if (activeToken) {
+      Promise.race([
+        (async () => {
+          const activeFcm = await fcmService.getFcmToken().catch(() => null);
+          await authService.logout(activeToken, activeFcm).catch(() => null);
+        })(),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]).catch(() => {});
     }
   }, [token]);
 
@@ -50,6 +66,9 @@ export const AuthProvider = ({ children }) => {
               logout();
             }
           });
+
+          // Automatically check & sync FCM token for already registered/logged-in users
+          fcmService.syncTokenWithBackend(savedToken);
         }
       } catch (err) {
         console.warn('Failed to restore token:', err);
@@ -61,16 +80,35 @@ export const AuthProvider = ({ children }) => {
     bootstrapAsync();
   }, [logout]);
 
+  // Listen for FCM token refresh while user is authenticated
+  useEffect(() => {
+    if (!token) return;
+    const unsubscribe = fcmService.onTokenRefresh((newToken) => {
+      fcmService.syncTokenWithBackend(token, newToken);
+    });
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [token]);
+
   /**
    * Log in user with email/mobile and password
+   * Automatically retrieves & registers FCM token, and verifies storage on backend
    */
   const login = async (loginId, password, fcmToken = null) => {
     setAuthError(null);
     try {
+      // Automatically acquire FCM token if not explicitly provided
+      const activeFcmToken = fcmToken || (await fcmService.getFcmToken(2, 600));
+      const deviceInfo = fcmService.getDeviceInfo();
+
       const res = await authService.login({
         login: loginId,
         password,
-        fcm_token: fcmToken,
+        fcm_token: activeFcmToken || undefined,
+        device_info: deviceInfo,
       });
 
       if (res.status && res.data?.token && res.data?.user) {
@@ -82,6 +120,11 @@ export const AuthProvider = ({ children }) => {
 
         await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, receivedToken);
         await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(receivedUser));
+
+        // Guarantee token is stored in backend device_tokens table
+        fcmService.syncTokenWithBackend(receivedToken, activeFcmToken).catch((err) => {
+          console.warn('[Auth] Post-login FCM token sync failed:', err);
+        });
 
         return { success: true, user: receivedUser };
       } else {
@@ -98,11 +141,23 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Register a new user
+   * Automatically retrieves & registers FCM token, and verifies storage on backend
    */
-  const register = async ({ name, email, mobile, password }) => {
+  const register = async ({ name, email, mobile, password, fcm_token = null, device_info = null }) => {
     setAuthError(null);
     try {
-      const res = await authService.register({ name, email, mobile, password });
+      // Automatically acquire FCM token if not explicitly provided
+      const activeFcmToken = fcm_token || (await fcmService.getFcmToken(2, 600));
+      const devInfo = device_info || fcmService.getDeviceInfo();
+
+      const res = await authService.register({
+        name,
+        email,
+        mobile,
+        password,
+        fcm_token: activeFcmToken || undefined,
+        device_info: devInfo,
+      });
 
       if (res.status && res.data?.token && res.data?.user) {
         const receivedToken = res.data.token;
@@ -113,6 +168,11 @@ export const AuthProvider = ({ children }) => {
 
         await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, receivedToken);
         await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(receivedUser));
+
+        // Guarantee token is stored in backend device_tokens table
+        fcmService.syncTokenWithBackend(receivedToken, activeFcmToken).catch((err) => {
+          console.warn('[Auth] Post-register FCM token sync failed:', err);
+        });
 
         return { success: true, user: receivedUser };
       } else {
@@ -128,7 +188,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Reset password
+   * Change password for authenticated user
+   */
+  const changePassword = async ({ old_password, new_password, confirm_password }) => {
+    if (!token) return { success: false, message: 'You must be logged in to change your password.' };
+    setAuthError(null);
+    try {
+      const res = await authService.changePassword(token, {
+        old_password,
+        new_password,
+        confirm_password,
+      });
+
+      if (res.status) {
+        return { success: true, message: res.message || 'Password changed successfully.' };
+      } else {
+        return { success: false, message: res.message || 'Failed to change password.' };
+      }
+    } catch (e) {
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
+  /**
+   * Reset password (unauthenticated)
    */
   const forgotPassword = async (loginId, newPassword) => {
     setAuthError(null);
@@ -195,6 +278,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         forgotPassword,
+        changePassword,
         logout,
         updateProfile,
         updateAvatar,

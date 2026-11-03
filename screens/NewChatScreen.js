@@ -8,7 +8,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   StatusBar,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import Colors from '../theme/colors';
@@ -19,6 +21,7 @@ import { useChat } from '../contexts/ChatContext';
 export const NewChatScreen = ({ navigation }) => {
   const { token } = useAuth();
   const { openChat } = useChat();
+  const insets = useSafeAreaInsets();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,12 +60,14 @@ export const NewChatScreen = ({ navigation }) => {
     return nameMatch || emailMatch || mobileMatch;
   });
 
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={Colors.primaryDark} barStyle="light-content" />
+      <StatusBar backgroundColor={Colors.primaryDark} barStyle="light-content" translucent={true} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: topInset + 6 }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,9 +15,11 @@ import Icon from '../components/Icon';
 import Colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
+import fcmService from '../services/fcmService';
+import { consumePendingNotificationPartner } from '../navigation/navigationRef';
 
 export const HomeScreen = ({ navigation }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, token, logout } = useAuth();
   const {
     conversations,
     totalUnreadCount,
@@ -30,6 +32,24 @@ export const HomeScreen = ({ navigation }) => {
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Proactively ensure FCM device token is registered for background notifications
+  useEffect(() => {
+    if (token) {
+      fcmService.syncTokenWithBackend(token);
+    }
+  }, [token]);
+
+  // Open pending notification chat if app was opened via notification from killed state
+  useEffect(() => {
+    const pendingPartner = consumePendingNotificationPartner();
+    if (pendingPartner?.id) {
+      console.log('[HomeScreen] Consuming pending notification partner:', pendingPartner);
+      setTimeout(() => {
+        handleOpenConversation(pendingPartner);
+      }, 100);
+    }
+  }, []);
+
   const handleOpenConversation = (partner) => {
     openChat(partner);
     navigation.navigate('Chat', { partner });
@@ -38,7 +58,7 @@ export const HomeScreen = ({ navigation }) => {
   const handleLogout = () => {
     Alert.alert(
       'Log out',
-      'Are you sure you want to log out of WhatsApp on this device?',
+      'Are you sure you want to log out of ChatApp on this device?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -46,7 +66,10 @@ export const HomeScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            navigation.replace('Login');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
           },
         },
       ]

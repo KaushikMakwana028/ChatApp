@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,14 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
+import fcmService from '../services/fcmService';
 
 export const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,6 +27,12 @@ export const RegisterScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Proactively request notification permissions and warm up FCM token on registration screen
+  useEffect(() => {
+    fcmService.requestNotificationPermission().catch(() => {});
+    fcmService.getFcmToken(2, 500).catch(() => {});
+  }, []);
 
   const handleRegister = async () => {
     if (!name.trim()) {
@@ -42,11 +51,15 @@ export const RegisterScreen = ({ navigation }) => {
     setErrorMessage('');
     setSubmitting(true);
 
+    // Acquire FCM token with notification permission before registration
+    const fcmToken = await fcmService.getFcmToken(2, 600).catch(() => null);
+
     const res = await register({
       name: name.trim(),
       email: email.trim(),
       mobile: mobile.trim(),
       password,
+      fcm_token: fcmToken,
     });
     setSubmitting(false);
 
@@ -57,20 +70,22 @@ export const RegisterScreen = ({ navigation }) => {
     }
   };
 
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={true} />
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 20 }]}>
         {/* Top Header */}
         <View style={styles.topSection}>
           <Image
             source={require('../assets/logo.png')}
             style={styles.logoImage}
           />
-          <Text style={styles.title}>Create your WhatsApp Account</Text>
+          <Text style={styles.title}>Create your ChatApp Account</Text>
           <Text style={styles.subtitle}>
             Read our Privacy Policy. Tap "Agree and continue" to accept the Terms of Service.
           </Text>

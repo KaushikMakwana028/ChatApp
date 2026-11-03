@@ -99,6 +99,39 @@ export const chatService = {
   getUserStatus: async (token, other_user_id) => {
     return await apiCall(`user_status?other_user_id=${other_user_id}`, 'GET', null, token);
   },
+
+  /**
+   * Edit text of an existing message sent by current user
+   */
+  editMessage: async (token, message_id, message_text) => {
+    return await apiCall(
+      'edit_message',
+      'POST',
+      {
+        message_id: Number(message_id),
+        message_text,
+      },
+      token
+    );
+  },
+
+  /**
+   * Delete a message either for everyone (sender only) or for me
+   * @param {string} token
+   * @param {number} message_id
+   * @param {'everyone'|'me'} delete_type
+   */
+  deleteMessage: async (token, message_id, delete_type = 'everyone') => {
+    return await apiCall(
+      'delete_message',
+      'POST',
+      {
+        message_id: Number(message_id),
+        delete_type,
+      },
+      token
+    );
+  },
 };
 
 export default chatService;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Avatar from './Avatar';
+import Icon from './Icon';
 import Colors from '../theme/colors';
 
 export const ConversationItem = ({ conversation, currentUserId, onPress }) => {
@@ -68,7 +69,7 @@ export const ConversationItem = ({ conversation, currentUserId, onPress }) => {
       return (
         <View style={styles.mediaPreviewRow}>
           {renderStatusTick()}
-          <Text style={styles.mediaIcon}>📷 </Text>
+          <Icon name="image" size={14} color={Colors.textMuted} style={{ marginRight: 4 }} />
           <Text style={styles.previewText} numberOfLines={1}>
             {lastMsg.message_text || 'Photo'}
           </Text>
@@ -80,7 +81,7 @@ export const ConversationItem = ({ conversation, currentUserId, onPress }) => {
       return (
         <View style={styles.mediaPreviewRow}>
           {renderStatusTick()}
-          <Text style={styles.mediaIcon}>🎥 </Text>
+          <Icon name="video" size={14} color={Colors.textMuted} style={{ marginRight: 4 }} />
           <Text style={styles.previewText} numberOfLines={1}>
             {lastMsg.message_text || 'Video'}
           </Text>

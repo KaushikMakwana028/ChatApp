@@ -1,52 +1,53 @@
 /**
- * WhatsApp Signature Color Palette & Design Tokens
+ * ChatApp Modern Signature Color Palette & Design Tokens
+ * Replaced legacy WhatsApp greens with modern, vibrant Royal Indigo & Slate
  */
 export const Colors = {
-  // Brand Greens
-  primary: '#008069',          // WhatsApp Classic Teal Dark (Header)
-  primaryDark: '#006853',      // Status Bar tone
-  secondary: '#00A884',        // Modern Vibrant Teal
-  accent: '#25D366',           // WhatsApp Light Green (Active badge & FAB)
-  tealLight: '#128C7E',
+  // Modern Vibrant Brand Indigo
+  primary: '#4F46E5',          // Modern Royal Indigo (Header & Brand)
+  primaryDark: '#3730A3',      // Deep Indigo for Status Bar
+  secondary: '#6366F1',        // Vibrant Indigo Accent
+  accent: '#4F46E5',           // Active badge & FAB
+  tealLight: '#818CF8',
 
   // Surfaces & Backgrounds
-  background: '#FFFFFF',
+  background: '#F8FAFC',       // Clean, crisp Slate surface
   surface: '#FFFFFF',
-  chatBackground: '#EFEAE2',   // Signature WhatsApp Chat Wallpaper Tint
-  chatBackgroundDark: '#121B22',
-  wallpaperTone: '#ECE5DD',
+  chatBackground: '#F1F5F9',   // Clean modern slate wallpaper
+  chatBackgroundDark: '#0F172A',
+  wallpaperTone: '#E2E8F0',
 
   // Message Bubbles
-  bubbleOutgoing: '#E7FFDB',   // WhatsApp light green outgoing bubble
-  bubbleIncoming: '#FFFFFF',   // Clean crisp white incoming bubble
-  bubbleOutgoingDark: '#005C4B',
-  bubbleIncomingDark: '#202C33',
+  bubbleOutgoing: '#E0E7FF',   // Modern soft indigo tint for outgoing
+  bubbleIncoming: '#FFFFFF',   // Pure crisp white for incoming
+  bubbleOutgoingDark: '#312E81',
+  bubbleIncomingDark: '#1E293B',
 
   // Typography
-  textPrimary: '#111B21',      // Deep charcoal black
-  textSecondary: '#667781',    // WhatsApp secondary grey
-  textMuted: '#8696A0',        // Timestamp and subtitle grey
+  textPrimary: '#0F172A',      // Slate 900
+  textSecondary: '#475569',    // Slate 600
+  textMuted: '#94A3B8',        // Slate 400
   textWhite: '#FFFFFF',
-  textLink: '#027EB5',
+  textLink: '#4F46E5',
 
   // Status & Receipts
-  tickSent: '#8696A0',         // Single grey check
-  tickDelivered: '#8696A0',    // Double grey check
-  tickRead: '#53BDEB',         // Double blue check
+  tickSent: '#94A3B8',         // Single slate check
+  tickDelivered: '#94A3B8',    // Double slate check
+  tickRead: '#4F46E5',         // Royal Indigo double check
 
   // Badges & Accents
-  badgeGreen: '#25D366',
+  badgeGreen: '#4F46E5',
   badgeText: '#FFFFFF',
-  onlineGreen: '#25D366',
-  offlineGrey: '#8696A0',
-  danger: '#EA0038',
+  onlineGreen: '#10B981',      // Emerald Green dot for live presence
+  offlineGrey: '#94A3B8',
+  danger: '#EF4444',
 
   // Borders & Dividers
-  border: '#E9EDEF',
-  divider: '#F0F2F5',
+  border: '#E2E8F0',
+  divider: '#F1F5F9',
   inputBackground: '#FFFFFF',
-  searchBarBg: '#F0F2F5',
-  ripple: 'rgba(0, 0, 0, 0.08)',
+  searchBarBg: '#F1F5F9',
+  ripple: 'rgba(79, 70, 229, 0.12)',
 };
 
 export default Colors;

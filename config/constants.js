@@ -1,7 +1,7 @@
 /**
  * Application Constants & Configuration
  */
-export const APP_NAME = 'WhatsApp';
+export const APP_NAME = 'ChatApp';
 
 export const STORAGE_KEYS = {
   TOKEN: '@chat_app_token',
@@ -10,12 +10,12 @@ export const STORAGE_KEYS = {
 };
 
 export const POLLING_INTERVALS = {
-  HEARTBEAT_MS: 25000,    // Every 25 seconds ping server
-  CONVERSATIONS_MS: 3000, // Refresh conversations list every 3s
-  MESSAGES_MS: 2000,      // Poll active chat messages every 2s
+  HEARTBEAT_MS: 20000,    // Ping server every 20s
+  CONVERSATIONS_MS: 2500, // Refresh conversations list every 2.5s
+  MESSAGES_MS: 1500,      // Fast active chat message polling every 1.5s for instant replies
 };
 
-export const DEFAULT_ABOUT = 'Hey there! I am using WhatsApp';
+export const DEFAULT_ABOUT = 'Hey there! I am using ChatApp';
 
 export const FILE_LIMITS = {
   MAX_UPLOAD_BYTES: 2097152, // 2MB

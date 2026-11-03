@@ -8,12 +8,14 @@ export const authService = {
   /**
    * Register a new user
    */
-  register: async ({ name, email, mobile, password }) => {
+  register: async ({ name, email, mobile, password, fcm_token, device_info }) => {
     return await apiCall('register', 'POST', {
       name,
       email: email || undefined,
       mobile: mobile || undefined,
       password,
+      fcm_token: fcm_token || undefined,
+      device_info: device_info || 'React Native Client',
     });
   },
 
@@ -37,13 +39,29 @@ export const authService = {
   },
 
   /**
-   * Reset / Forgot password
+   * Reset / Forgot password (unauthenticated)
    */
   forgotPassword: async ({ login, new_password }) => {
     return await apiCall('forgot_password', 'POST', {
       login,
       new_password,
     });
+  },
+
+  /**
+   * Change password (authenticated)
+   */
+  changePassword: async (token, { old_password, new_password, confirm_password }) => {
+    return await apiCall(
+      'change_password',
+      'POST',
+      {
+        old_password,
+        new_password,
+        confirm_password,
+      },
+      token
+    );
   },
 
   /**
@@ -89,6 +107,13 @@ export const authService = {
       },
       token
     );
+  },
+
+  /**
+   * Check if current user has an active device token stored on backend
+   */
+  checkDeviceToken: async (token) => {
+    return await apiCall('check_device_token', 'GET', null, token);
   },
 };
 

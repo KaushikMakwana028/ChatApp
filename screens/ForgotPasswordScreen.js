@@ -12,11 +12,13 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 
 export const ForgotPasswordScreen = ({ navigation }) => {
   const { forgotPassword } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [loginId, setLoginId] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -55,13 +57,15 @@ export const ForgotPasswordScreen = ({ navigation }) => {
     }
   };
 
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={true} />
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 20 }]}>
         {/* Top Branding */}
         <View style={styles.topSection}>
           <Image

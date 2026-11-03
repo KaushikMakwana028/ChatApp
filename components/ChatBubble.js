@@ -6,10 +6,12 @@ import { resolveMediaUrl } from '../contexts/api';
 const { width } = Dimensions.get('window');
 const MAX_BUBBLE_WIDTH = width * 0.78;
 
-export const ChatBubble = ({ message, currentUserId, onImagePress }) => {
+export const ChatBubble = ({ message, currentUserId, onImagePress, onLongPress }) => {
   const isMe = Number(message.sender_id) === Number(currentUserId);
-  const isImage = message.message_type === 'image';
-  const isVideo = message.message_type === 'video';
+  const isDeleted = !!message.is_deleted;
+  const isEdited = !!message.is_edited && !isDeleted;
+  const isImage = message.message_type === 'image' && !isDeleted;
+  const isVideo = message.message_type === 'video' && !isDeleted;
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
@@ -29,7 +31,7 @@ export const ChatBubble = ({ message, currentUserId, onImagePress }) => {
     if (!isMe) return null;
 
     if (message.isOptimistic) {
-      return <Text style={styles.clockIcon}>🕒</Text>;
+      return <Text style={[styles.tick, { color: Colors.textMuted }]}>•</Text>;
     }
 
     if (message.status === 'read') {
@@ -45,11 +47,15 @@ export const ChatBubble = ({ message, currentUserId, onImagePress }) => {
 
   return (
     <View style={[styles.row, isMe ? styles.rowRight : styles.rowLeft]}>
-      <View
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onLongPress={() => onLongPress && onLongPress(message)}
+        delayLongPress={280}
         style={[
           styles.bubble,
           isMe ? styles.bubbleOutgoing : styles.bubbleIncoming,
           isImage || isVideo ? styles.mediaBubble : null,
+          isDeleted ? styles.deletedBubble : null,
         ]}
       >
         {/* IMAGE MESSAGE */}
@@ -72,17 +78,24 @@ export const ChatBubble = ({ message, currentUserId, onImagePress }) => {
           </View>
         )}
 
-        {/* MESSAGE TEXT */}
-        {!!message.message_text && (
-          <Text style={styles.messageText}>{message.message_text}</Text>
+        {/* MESSAGE TEXT OR DELETED STATE */}
+        {isDeleted ? (
+          <View style={styles.deletedContainer}>
+            <Text style={styles.deletedText}>🚫 This message was deleted</Text>
+          </View>
+        ) : (
+          !!message.message_text && (
+            <Text style={styles.messageText}>{message.message_text}</Text>
+          )
         )}
 
-        {/* META FOOTER: TIMESTAMP & TICKS */}
+        {/* META FOOTER: TIMESTAMP, EDITED BADGE & TICKS */}
         <View style={styles.metaRow}>
+          {isEdited && <Text style={styles.editedBadge}>edited • </Text>}
           <Text style={styles.timeText}>{formatTime(message.created_at)}</Text>
-          {renderStatusTicks()}
+          {!isDeleted && renderStatusTicks()}
         </View>
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -165,6 +178,27 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 10,
     color: Colors.textMuted,
+  },
+  editedBadge: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: Colors.textMuted,
+  },
+  deletedBubble: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  deletedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    marginRight: 20,
+  },
+  deletedText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#9CA3AF',
   },
   tick: {
     fontSize: 11,

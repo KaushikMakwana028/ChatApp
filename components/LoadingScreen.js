@@ -48,14 +48,14 @@ export const LoadingScreen = ({ message = 'Connecting...' }) => {
           />
         </Animated.View>
 
-        <Text style={styles.appTitle}>WhatsApp</Text>
+        <Text style={styles.appTitle}>ChatApp</Text>
         {!!message && <Text style={styles.statusMessage}>{message}</Text>}
       </View>
 
       {/* Footer Branding */}
       <View style={styles.footerContainer}>
-        <Text style={styles.fromText}>from</Text>
-        <Text style={styles.metaText}>META</Text>
+        <Text style={styles.fromText}>SECURE MESSAGING</Text>
+        <Text style={styles.metaText}>END-TO-END ENCRYPTED</Text>
       </View>
     </View>
   );
